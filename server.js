@@ -119,24 +119,32 @@ app.get('/api/products/:productUid', async (req, res) => {
   }
 });
 
-// ── Store: list your store's products ────────────────────────────────────────
+// ── Store: list your store's products (with full details per product) ─────────
 // GET /api/store/products
 app.get('/api/store/products', async (_req, res) => {
   try {
+    // 1. Get product list
     const r = await fetch(`${GELATO_STORE_URL}/${STORE_ID}/products?limit=100`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-KEY': GELATO_API_KEY,
-      },
+      headers: { 'Content-Type': 'application/json', 'X-API-KEY': GELATO_API_KEY },
     });
     const text = await r.text();
-    console.log('Gelato store products raw:', r.status, text.slice(0, 300));
     let data;
     try { data = JSON.parse(text); } catch(e) { return res.status(500).json({ error: `Non-JSON from Gelato: ${text.slice(0,200)}` }); }
     if (!r.ok) return res.status(r.status).json({ error: data.message || JSON.stringify(data) });
-    // Normalise response shape
     const products = Array.isArray(data) ? data : (data.products || data.data || []);
-    res.json(products);
+
+    // 2. Fetch full details for each product (includes externalPreviewUrl, externalThumbnailUrl)
+    const detailed = await Promise.all(products.map(async (p) => {
+      try {
+        const dr = await fetch(`${GELATO_STORE_URL}/${STORE_ID}/products/${p.id}`, {
+          headers: { 'Content-Type': 'application/json', 'X-API-KEY': GELATO_API_KEY },
+        });
+        if (!dr.ok) return p;
+        return await dr.json();
+      } catch { return p; }
+    }));
+
+    res.json(detailed);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

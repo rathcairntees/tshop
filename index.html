@@ -514,32 +514,56 @@
         grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)">No products found in your store.</div>`;
         return;
       }
-      // Map Gelato store products into our internal format
+
       PRODUCTS = data.map(p => {
-        const variants = (p.variants || []).map(v => ({
-          label:      (v.title || v.variantTitle || Object.values(v.options || {}).join(' / ')),
-          productUid: v.productUid || v.externalId || '',
-          price:      parseFloat(v.price || p.price || 0),
-          fileUrl:    (v.imageSrc || p.previewUrl || ''),
+        // Build a colour→image map from variant titles e.g. "Navy - S" → colour = "Navy"
+        // Gelato doesn't provide per-variant images via API, so we use the product preview
+        // and the externalThumbnailUrl (synced from your connected store) as fallback.
+        const previewUrl = p.externalPreviewUrl || p.externalThumbnailUrl || p.previewUrl || '';
+
+        const variants = (p.variants || []).filter(v => v.connectionStatus !== 'ignored').map(v => ({
+          id:         v.id,
+          label:      v.title || '',
+          productUid: v.productUid || '',
+          // Price comes from your store — set via PRICES map below or defaults to 0
+          price:      0,
+          previewUrl, // same image for all variants; update PRICES below to set per-variant if needed
         }));
-        // Fallback if no variants
+
         if (!variants.length) {
           variants.push({
-            label:      p.title,
-            productUid: p.productUid || p.externalId || p.id,
-            price:      parseFloat(p.price || 0),
-            fileUrl:    p.previewUrl || '',
+            id: p.id, label: p.title,
+            productUid: p.productUid || p.id,
+            price: 0, previewUrl,
           });
         }
+
         return {
-          id:       p.id || p.externalId,
-          name:     p.title,
-          desc:     p.description ? p.description.replace(/<[^>]+>/g, '').slice(0, 100) + '…' : '',
-          emoji:    productEmoji(p.title),
-          previewUrl: p.previewUrl || (p.variants && p.variants[0]?.imageSrc) || '',
+          id:         p.id,
+          name:       p.title,
+          desc:       p.description ? p.description.replace(/<[^>]+>/g, '').slice(0, 120) + '…' : '',
+          emoji:      productEmoji(p.title),
+          previewUrl,
           variants,
+          // Extract colour options for image switching
+          colours: (p.productVariantOptions || []).find(o => o.name.toLowerCase() === 'color')?.values || [],
         };
       });
+
+      // ── PRICES ───────────────────────────────────────────────────────────────
+      // Gelato's API doesn't expose your retail prices — set them here by product name.
+      // Key = product title substring (case-insensitive), value = price in EUR.
+      // e.g. { 'T-shirt': 25.00, 'Hoodie': 45.00, 'Mug': 16.00 }
+      const PRICES = {
+        // 'T-shirt': 25.00,
+        // 'Hoodie':  45.00,
+        // 'Mug':     16.00,
+      };
+      PRODUCTS.forEach(p => {
+        const match = Object.entries(PRICES).find(([k]) => p.name.toLowerCase().includes(k.toLowerCase()));
+        if (match) p.variants.forEach(v => v.price = match[1]);
+      });
+
       renderProducts();
     } catch (err) {
       grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#c0392b;font-size:0.9rem">Failed to load products: ${err.message}</div>`;
@@ -550,26 +574,43 @@
   function renderProducts() {
     const grid = document.getElementById('productGrid');
     grid.innerHTML = PRODUCTS.map(p => {
-      const minPrice = Math.min(...p.variants.map(v => v.price));
+      const prices = p.variants.map(v => v.price).filter(x => x > 0);
+      const minPrice = prices.length ? Math.min(...prices) : null;
       const imgHtml = p.previewUrl
-        ? `<img src="${p.previewUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='${p.emoji}'">`
-        : p.emoji;
+        ? `<img id="img-${p.id}" src="${p.previewUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">`
+        : `<span id="img-${p.id}">${p.emoji}</span>`;
       return `
         <div class="product-card">
           <div class="product-img">${imgHtml}</div>
           <div class="product-body">
             <div class="product-name">${p.name}</div>
             <div class="product-desc">${p.desc}</div>
-            <select class="variant-select" id="variant-${p.id}">
-              ${p.variants.map((v,i) => `<option value="${i}">${v.label}${v.price ? ' — €' + v.price.toFixed(2) : ''}</option>`).join('')}
+            <select class="variant-select" id="variant-${p.id}" onchange="onVariantChange('${p.id}', this)">
+              ${p.variants.map((v,i) => `<option value="${i}">${v.label}${v.price > 0 ? ' — €' + v.price.toFixed(2) : ''}</option>`).join('')}
             </select>
             <div class="product-footer">
-              <span class="product-price">${minPrice ? 'from €' + minPrice.toFixed(2) : ''}</span>
+              <span class="product-price" id="price-${p.id}">${minPrice ? 'from €' + minPrice.toFixed(2) : 'Price on request'}</span>
             </div>
             <button class="add-btn" onclick="addToCart('${p.id}')">Add to Cart</button>
           </div>
         </div>`;
     }).join('');
+  }
+
+  // ── Update image + price when variant changes ─────────────────────────────────
+  function onVariantChange(productId, select) {
+    const product = PRODUCTS.find(p => String(p.id) === String(productId));
+    if (!product) return;
+    const variant = product.variants[parseInt(select.value)];
+    if (!variant) return;
+    // Update price label
+    const priceEl = document.getElementById(`price-${productId}`);
+    if (priceEl) priceEl.textContent = variant.price > 0 ? `€${variant.price.toFixed(2)}` : 'Price on request';
+    // Update image if variant has its own preview
+    if (variant.previewUrl) {
+      const img = document.getElementById(`img-${productId}`);
+      if (img && img.tagName === 'IMG') img.src = variant.previewUrl;
+    }
   }
 
   // ── Cart logic ───────────────────────────────────────────────────────────────
