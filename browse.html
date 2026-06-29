@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Browser — Gelato</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink:    #1a1a1a;
+      --stone:  #f5f3ef;
+      --cream:  #faf9f6;
+      --accent: #2e5d4b;
+      --muted:  #7a7a72;
+      --border: #e0ddd6;
+      --tag-bg: #eef7f3;
+      --tag-col:#2e5d4b;
+    }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+
+    header {
+      background: var(--ink); color: #fff;
+      padding: 0 2rem; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { font-family: 'DM Serif Display', serif; font-size: 1.1rem; }
+    .logo span { color: #8fc9b2; }
+    .back-link { color: #8fc9b2; text-decoration: none; font-size: 0.85rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    .page { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+    h1 { font-family: 'DM Serif Display', serif; font-size: 1.8rem; margin-bottom: 0.4rem; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+
+    /* ── Config banner ── */
+    .config-banner {
+      background: #fffbea;
+      border: 1px solid #f0d080;
+      border-radius: 6px;
+      padding: 0.85rem 1.1rem;
+      font-size: 0.85rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .config-banner label { font-weight: 500; white-space: nowrap; }
+    .config-banner input {
+      border: 1px solid #d0c060;
+      border-radius: 4px;
+      padding: 0.35rem 0.6rem;
+      font-family: inherit;
+      font-size: 0.85rem;
+      flex: 1;
+      min-width: 260px;
+      background: #fff;
+    }
+    .config-banner button {
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 4px;
+      padding: 0.4rem 1rem;
+      font-family: inherit; font-size: 0.85rem;
+      cursor: pointer; white-space: nowrap;
+    }
+
+    /* ── Catalogs ── */
+    .section-label {
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 1rem; border-bottom: 1px solid var(--border);
+      padding-bottom: 0.6rem;
+    }
+    .catalog-grid {
+      display: flex; flex-wrap: wrap; gap: 0.6rem;
+      margin-bottom: 2rem;
+    }
+    .catalog-chip {
+      background: var(--stone);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.4rem 1rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: capitalize;
+    }
+    .catalog-chip:hover { border-color: var(--accent); color: var(--accent); }
+    .catalog-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ── Filters ── */
+    .filters-panel {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+    .filters-panel.visible { display: block; }
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .filter-group label {
+      display: block;
+      font-size: 0.72rem; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 0.5rem;
+    }
+    .filter-options { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .filter-opt {
+      background: var(--stone);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.25rem 0.65rem;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .filter-opt:hover { border-color: var(--accent); }
+    .filter-opt.selected { background: var(--tag-bg); color: var(--tag-col); border-color: var(--accent); }
+
+    .filter-actions { margin-top: 1.25rem; display: flex; gap: 0.75rem; align-items: center; }
+    .search-btn {
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 4px;
+      padding: 0.6rem 1.4rem;
+      font-family: inherit; font-size: 0.9rem; font-weight: 500;
+      cursor: pointer;
+    }
+    .search-btn:hover { background: #244d3d; }
+    .clear-btn {
+      background: none; border: 1px solid var(--border);
+      border-radius: 4px; padding: 0.6rem 1rem;
+      font-family: inherit; font-size: 0.85rem; cursor: pointer;
+      color: var(--muted);
+    }
+    .clear-btn:hover { color: var(--ink); }
+
+    /* ── Results ── */
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .results-count { font-size: 0.85rem; color: var(--muted); }
+
+    .product-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .product-table th {
+      text-align: left; padding: 0.6rem 0.75rem;
+      background: var(--stone);
+      font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+    }
+    .product-table td {
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .product-table tr:hover td { background: var(--stone); }
+
+    .uid-cell {
+      font-family: monospace; font-size: 0.78rem;
+      color: var(--accent); word-break: break-all;
+    }
+    .attr-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .attr-tag {
+      background: var(--tag-bg); color: var(--tag-col);
+      border-radius: 10px; padding: 0.15rem 0.5rem;
+      font-size: 0.72rem; font-weight: 500;
+    }
+    .copy-btn {
+      background: none; border: 1px solid var(--border);
+      border-radius: 4px; padding: 0.25rem 0.6rem;
+      font-size: 0.75rem; cursor: pointer;
+      font-family: inherit; color: var(--ink);
+      white-space: nowrap;
+    }
+    .copy-btn:hover { background: var(--stone); }
+    .copy-btn.copied { color: var(--accent); border-color: var(--accent); }
+
+    /* Snippet box */
+    .snippet-box {
+      background: #1a1a1a; color: #8fc9b2;
+      border-radius: 6px; padding: 1.25rem;
+      font-family: monospace; font-size: 0.78rem;
+      white-space: pre-wrap; word-break: break-all;
+      margin-top: 2rem; display: none;
+      line-height: 1.6;
+    }
+    .snippet-box.visible { display: block; }
+    .snippet-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1rem;
+    }
+    .snippet-title { font-family: 'DM Sans', sans-serif; font-size: 0.85rem; color: var(--muted); }
+
+    /* Pagination */
+    .pagination { display: flex; gap: 0.5rem; margin-top: 1.5rem; align-items: center; }
+    .page-btn {
+      background: none; border: 1px solid var(--border);
+      border-radius: 4px; padding: 0.4rem 0.75rem;
+      cursor: pointer; font-family: inherit; font-size: 0.85rem;
+    }
+    .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .page-info { font-size: 0.82rem; color: var(--muted); }
+
+    /* Loading / empty */
+    .loading { text-align: center; padding: 3rem; color: var(--muted); font-size: 0.9rem; }
+    .empty { text-align: center; padding: 3rem; color: var(--muted); font-size: 0.9rem; }
+
+    /* Selected products panel */
+    .selected-panel {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--ink); color: #fff;
+      border-radius: 8px; padding: 1rem 1.25rem;
+      min-width: 260px; max-width: 360px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+      display: none; z-index: 50;
+    }
+    .selected-panel.visible { display: block; }
+    .selected-panel h3 { font-size: 0.85rem; color: #8fc9b2; margin-bottom: 0.75rem; }
+    .selected-list { list-style: none; margin-bottom: 1rem; max-height: 150px; overflow-y: auto; }
+    .selected-list li {
+      font-size: 0.75rem; font-family: monospace;
+      padding: 0.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 0.5rem; color: #ccc;
+    }
+    .selected-list li span { flex: 1; word-break: break-all; }
+    .deselect-btn { background: none; border: none; color: #888; cursor: pointer; font-size: 0.8rem; }
+    .deselect-btn:hover { color: #ff8080; }
+    .gen-btn {
+      width: 100%; background: #8fc9b2; color: var(--ink);
+      border: none; border-radius: 4px; padding: 0.6rem;
+      font-family: inherit; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer;
+    }
+    .gen-btn:hover { background: #7ab8a2; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Print<span>Shop</span> — Product Browser</div>
+  <a class="back-link" href="index.html">← Back to store</a>
+</header>
+
+<div class="page">
+  <h1>Browse Gelato Catalogue</h1>
+  <p class="subtitle">Find products, filter by attributes, and copy UIDs straight into your store.</p>
+
+  <!-- Backend URL config -->
+  <div class="config-banner">
+    <label>Your Railway URL:</label>
+    <input type="text" id="apiBase" placeholder="https://your-app.up.railway.app" value="https://tshop-production.up.railway.app" />
+    <button onclick="loadCatalogs()">Load Catalogs</button>
+  </div>
+
+  <!-- Catalog picker -->
+  <div class="section-label">Catalogs</div>
+  <div class="catalog-grid" id="catalogGrid">
+    <span style="color:var(--muted);font-size:0.85rem">Enter your Railway URL above and click Load Catalogs.</span>
+  </div>
+
+  <!-- Attribute filters -->
+  <div class="filters-panel" id="filtersPanel">
+    <div class="section-label">Filter by attribute</div>
+    <div class="filters-grid" id="filtersGrid"></div>
+    <div class="filter-actions">
+      <button class="search-btn" onclick="searchProducts(0)">Search Products</button>
+      <button class="clear-btn" onclick="clearFilters()">Clear filters</button>
+      <span id="filterCount" style="font-size:0.8rem;color:var(--muted)"></span>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsArea"></div>
+
+  <!-- Generated snippet -->
+  <div class="snippet-box" id="snippetBox">
+    <div class="snippet-header">
+      <span class="snippet-title">Copy this into the PRODUCTS array in index.html</span>
+      <button class="copy-btn" onclick="copySnippet()">Copy all</button>
+    </div>
+    <div id="snippetContent"></div>
+  </div>
+</div>
+
+<!-- Selected products floating panel -->
+<div class="selected-panel" id="selectedPanel">
+  <h3>Selected products (<span id="selectedCount">0</span>)</h3>
+  <ul class="selected-list" id="selectedList"></ul>
+  <button class="gen-btn" onclick="generateSnippet()">Generate index.html snippet ↓</button>
+</div>
+
+<script>
+  let apiBase = '';
+  let activeCatalog = null;
+  let catalogAttributes = [];
+  let selectedFilters = {};   // { attributeUid: Set of values }
+  let selectedProducts = [];  // [{ productUid, attributes }]
+  let currentOffset = 0;
+  let totalProducts = 0;
+  const PAGE_SIZE = 20;
+
+  // ── Load saved URL ──────────────────────────────────────────────────────────
+  const saved = localStorage.getItem('gelato_api_base');
+  if (saved) document.getElementById('apiBase').value = saved;
+
+  // ── Load catalogs ───────────────────────────────────────────────────────────
+  async function loadCatalogs() {
+    apiBase = document.getElementById('apiBase').value.trim().replace(/\/$/, '');
+    if (!apiBase) return alert('Please enter your Railway URL first.');
+    localStorage.setItem('gelato_api_base', apiBase);
+
+    const grid = document.getElementById('catalogGrid');
+    grid.innerHTML = '<span style="color:var(--muted);font-size:0.85rem">Loading…</span>';
+
+    try {
+      const res = await fetch(`${apiBase}/api/catalogs`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.status);
+
+      const catalogs = Array.isArray(data) ? data : (data.catalogs || []);
+      grid.innerHTML = catalogs.map(c => `
+        <button class="catalog-chip" onclick="selectCatalog('${c.catalogUid}', this)">
+          ${c.title || c.catalogUid}
+        </button>
+      `).join('');
+    } catch (err) {
+      grid.innerHTML = `<span style="color:#c0392b;font-size:0.85rem">Error: ${err.message}</span>`;
+    }
+  }
+
+  // ── Select a catalog ─────────────────────────────────────────────────────────
+  async function selectCatalog(uid, btn) {
+    document.querySelectorAll('.catalog-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    activeCatalog = uid;
+    selectedFilters = {};
+    document.getElementById('resultsArea').innerHTML = '';
+    document.getElementById('snippetBox').classList.remove('visible');
+
+    const panel = document.getElementById('filtersPanel');
+    panel.classList.remove('visible');
+    document.getElementById('filtersGrid').innerHTML = '<span style="color:var(--muted);font-size:0.85rem">Loading attributes…</span>';
+    panel.classList.add('visible');
+
+    try {
+      const res = await fetch(`${apiBase}/api/catalogs/${uid}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.status);
+
+      catalogAttributes = data.productAttributes || [];
+      renderFilters();
+    } catch (err) {
+      document.getElementById('filtersGrid').innerHTML =
+        `<span style="color:#c0392b;font-size:0.85rem">Error: ${err.message}</span>`;
+    }
+  }
+
+  // ── Render attribute filters ─────────────────────────────────────────────────
+  function renderFilters() {
+    const grid = document.getElementById('filtersGrid');
+    grid.innerHTML = catalogAttributes.map(attr => `
+      <div class="filter-group">
+        <label>${attr.title}</label>
+        <div class="filter-options">
+          ${(attr.values || []).map(v => `
+            <button class="filter-opt" data-attr="${attr.productAttributeUid}" data-val="${v.productAttributeValueUid}"
+              onclick="toggleFilter('${attr.productAttributeUid}', '${v.productAttributeValueUid}', this)">
+              ${v.title}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function toggleFilter(attrUid, valUid, btn) {
+    if (!selectedFilters[attrUid]) selectedFilters[attrUid] = new Set();
+    if (selectedFilters[attrUid].has(valUid)) {
+      selectedFilters[attrUid].delete(valUid);
+      btn.classList.remove('selected');
+    } else {
+      selectedFilters[attrUid].add(valUid);
+      btn.classList.add('selected');
+    }
+    updateFilterCount();
+  }
+
+  function clearFilters() {
+    selectedFilters = {};
+    document.querySelectorAll('.filter-opt').forEach(b => b.classList.remove('selected'));
+    updateFilterCount();
+  }
+
+  function updateFilterCount() {
+    const total = Object.values(selectedFilters).reduce((s, v) => s + v.size, 0);
+    document.getElementById('filterCount').textContent = total ? `${total} filter${total>1?'s':''} active` : '';
+  }
+
+  // ── Search products ──────────────────────────────────────────────────────────
+  async function searchProducts(offset = 0) {
+    if (!activeCatalog) return;
+    currentOffset = offset;
+
+    const resultsArea = document.getElementById('resultsArea');
+    resultsArea.innerHTML = '<div class="loading">Searching…</div>';
+
+    // Build attributes payload (only include attrs with selections)
+    const attributes = {};
+    for (const [k, vSet] of Object.entries(selectedFilters)) {
+      if (vSet.size > 0) attributes[k] = [...vSet];
+    }
+
+    try {
+      const res = await fetch(`${apiBase}/api/catalogs/${activeCatalog}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attributes, limit: PAGE_SIZE, offset }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.status);
+
+      const products = data.products || data.hits || data || [];
+      totalProducts  = data.total || data.totalHits || products.length;
+      renderResults(products, offset);
+    } catch (err) {
+      resultsArea.innerHTML = `<div class="empty" style="color:#c0392b">Error: ${err.message}</div>`;
+    }
+  }
+
+  // ── Render results table ─────────────────────────────────────────────────────
+  function renderResults(products, offset) {
+    const area = document.getElementById('resultsArea');
+    if (!products.length) {
+      area.innerHTML = '<div class="empty">No products found. Try adjusting your filters.</div>';
+      return;
+    }
+
+    const isSelected = uid => selectedProducts.some(p => p.productUid === uid);
+
+    const rows = products.map(p => {
+      const uid   = p.productUid || p.uid || '';
+      const attrs = p.attributes || {};
+      const tags  = Object.entries(attrs)
+        .filter(([k]) => k !== 'ProductStatus')
+        .map(([k, v]) => `<span class="attr-tag">${v}</span>`)
+        .join('');
+      const sel = isSelected(uid);
+      return `
+        <tr>
+          <td class="uid-cell">${uid}</td>
+          <td><div class="attr-tags">${tags}</div></td>
+          <td>
+            <button class="copy-btn" onclick="copyUid('${uid}', this)">Copy UID</button>
+          </td>
+          <td>
+            <button class="copy-btn ${sel ? 'copied' : ''}" id="sel-${uid.replace(/[^a-z0-9]/gi,'-')}"
+              onclick="toggleSelect('${uid}', ${JSON.stringify(attrs).replace(/"/g,'&quot;')}, this)">
+              ${sel ? '✓ Added' : '+ Select'}
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    const totalPages = Math.ceil(totalProducts / PAGE_SIZE);
+    const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+
+    area.innerHTML = `
+      <div class="results-header">
+        <div class="section-label" style="margin-bottom:0">${activeCatalog}</div>
+        <span class="results-count">${totalProducts} product${totalProducts !== 1 ? 's' : ''} found</span>
+      </div>
+      <table class="product-table">
+        <thead>
+          <tr>
+            <th style="width:45%">Product UID</th>
+            <th>Attributes</th>
+            <th style="width:90px"></th>
+            <th style="width:90px"></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${totalPages > 1 ? `
+        <div class="pagination">
+          <button class="page-btn" onclick="searchProducts(${offset - PAGE_SIZE})" ${offset === 0 ? 'disabled' : ''}>← Prev</button>
+          <span class="page-info">Page ${currentPage} of ${totalPages}</span>
+          <button class="page-btn" onclick="searchProducts(${offset + PAGE_SIZE})" ${offset + PAGE_SIZE >= totalProducts ? 'disabled' : ''}>Next →</button>
+        </div>
+      ` : ''}
+    `;
+  }
+
+  // ── Copy UID to clipboard ────────────────────────────────────────────────────
+  function copyUid(uid, btn) {
+    navigator.clipboard.writeText(uid);
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy UID'; btn.classList.remove('copied'); }, 1500);
+  }
+
+  // ── Select / deselect products ───────────────────────────────────────────────
+  function toggleSelect(uid, attrs, btn) {
+    const idx = selectedProducts.findIndex(p => p.productUid === uid);
+    if (idx > -1) {
+      selectedProducts.splice(idx, 1);
+      btn.textContent = '+ Select';
+      btn.classList.remove('copied');
+    } else {
+      selectedProducts.push({ productUid: uid, attributes: attrs });
+      btn.textContent = '✓ Added';
+      btn.classList.add('copied');
+    }
+    updateSelectedPanel();
+  }
+
+  function deselect(uid) {
+    selectedProducts = selectedProducts.filter(p => p.productUid !== uid);
+    updateSelectedPanel();
+    // Update any visible button
+    const safeId = uid.replace(/[^a-z0-9]/gi, '-');
+    const btn = document.getElementById(`sel-${safeId}`);
+    if (btn) { btn.textContent = '+ Select'; btn.classList.remove('copied'); }
+  }
+
+  function updateSelectedPanel() {
+    const panel = document.getElementById('selectedPanel');
+    const count = selectedProducts.length;
+    document.getElementById('selectedCount').textContent = count;
+    panel.classList.toggle('visible', count > 0);
+
+    document.getElementById('selectedList').innerHTML = selectedProducts.map(p => `
+      <li>
+        <span>${p.productUid}</span>
+        <button class="deselect-btn" onclick="deselect('${p.productUid}')">✕</button>
+      </li>
+    `).join('');
+  }
+
+  // ── Generate index.html snippet ──────────────────────────────────────────────
+  function generateSnippet() {
+    if (!selectedProducts.length) return;
+
+    const entries = selectedProducts.map((p, i) => {
+      const attrs = p.attributes || {};
+      // Derive a human name from the UID
+      const parts = p.productUid.split('_');
+      const name  = parts.slice(0,3).join(' ').replace(/-/g,' ');
+
+      // Group all variants of same "base" product — for now each is its own entry
+      return `  {
+    id: 'product-${i+1}',
+    name: '${name}',
+    desc: 'Add a description here.',
+    emoji: '🖨️',
+    variants: [
+      {
+        label: '${Object.values(attrs).filter(v => v !== 'activated').join(' / ')}',
+        productUid: '${p.productUid}',
+        price: 0.00,  // ← set your price
+      },
+    ],
+    fileUrl: 'https://YOUR_ARTWORK_URL_HERE',  // ← your print file
+  }`;
+    }).join(',\n\n');
+
+    const snippet = `const PRODUCTS = [\n${entries}\n];`;
+    document.getElementById('snippetContent').textContent = snippet;
+    document.getElementById('snippetBox').classList.add('visible');
+    document.getElementById('snippetBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copySnippet() {
+    const text = document.getElementById('snippetContent').textContent;
+    navigator.clipboard.writeText(text);
+    const btn = document.querySelector('.snippet-box .copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy all'; }, 1800);
+  }
+</script>
+</body>
+</html>

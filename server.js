@@ -21,31 +21,99 @@ const crypto  = require('crypto');
 const app  = express();
 const PORT = process.env.PORT || 3001;
 const GELATO_API_KEY  = process.env.GELATO_API_KEY;
-const ALLOWED_ORIGIN  = process.env.ALLOWED_ORIGIN || '*'; // e.g. https://yourname.github.io
+const ALLOWED_ORIGIN  = process.env.ALLOWED_ORIGIN || '*';
 
-const GELATO_ORDER_URL = 'https://order.gelatoapis.com/v4/orders';
+const GELATO_ORDER_URL   = 'https://order.gelatoapis.com/v4/orders';
+const GELATO_CATALOG_URL = 'https://product.gelatoapis.com/v3/catalogs';
+const GELATO_PRODUCT_URL = 'https://product.gelatoapis.com/v3/products';
 
 if (!GELATO_API_KEY) {
   console.error('❌  GELATO_API_KEY environment variable is not set.');
   process.exit(1);
 }
 
-// Only allow requests from your GitHub Pages domain
 app.use(cors({
   origin: ALLOWED_ORIGIN,
-  methods: ['POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'OPTIONS'],
 }));
 
 app.use(express.json());
 
-// Health check — Railway uses this to confirm the app is up
+// ── Health check ─────────────────────────────────────────────────────────────
 app.get('/', (_req, res) => res.json({ status: 'ok', service: 'gelato-proxy' }));
 
-/**
- * POST /api/order
- *
- * Body: { shippingAddress: {...}, items: [{productUid, fileUrl, quantity, itemRef}] }
- */
+// ── Catalog: list all catalogs ────────────────────────────────────────────────
+// GET /api/catalogs
+app.get('/api/catalogs', async (_req, res) => {
+  try {
+    const r = await fetch(GELATO_CATALOG_URL, {
+      headers: { 'X-API-KEY': GELATO_API_KEY },
+    });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: JSON.stringify(data) });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Catalog: get attributes for one catalog ───────────────────────────────────
+// GET /api/catalogs/:catalogUid
+app.get('/api/catalogs/:catalogUid', async (req, res) => {
+  try {
+    const r = await fetch(`${GELATO_CATALOG_URL}/${req.params.catalogUid}`, {
+      headers: { 'X-API-KEY': GELATO_API_KEY },
+    });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: JSON.stringify(data) });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Catalog: search products within a catalog ─────────────────────────────────
+// POST /api/catalogs/:catalogUid/products
+// Body: { attributes: { PaperFormat: ["A3"], Orientation: ["ver"] }, limit: 20, offset: 0 }
+app.post('/api/catalogs/:catalogUid/products', async (req, res) => {
+  try {
+    const r = await fetch(`${GELATO_CATALOG_URL}/${req.params.catalogUid}/products:search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': GELATO_API_KEY,
+      },
+      body: JSON.stringify({
+        attributes: req.body.attributes || {},
+        limit:  req.body.limit  || 20,
+        offset: req.body.offset || 0,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: JSON.stringify(data) });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Product: get a single product by UID ─────────────────────────────────────
+// GET /api/products/:productUid
+app.get('/api/products/:productUid', async (req, res) => {
+  try {
+    const r = await fetch(`${GELATO_PRODUCT_URL}/${req.params.productUid}`, {
+      headers: { 'X-API-KEY': GELATO_API_KEY },
+    });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: JSON.stringify(data) });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Orders ────────────────────────────────────────────────────────────────────
+// POST /api/order
 app.post('/api/order', async (req, res) => {
   const { shippingAddress, items } = req.body;
 
@@ -67,14 +135,14 @@ app.post('/api/order', async (req, res) => {
     orderType:           'order',
     orderReferenceId:    orderId,
     customerReferenceId: customerId,
-    currency:            'EUR',        // ← change to match your store
+    currency:            'EUR',
     items: items.map((item, idx) => ({
       itemReferenceId: item.itemRef || `item-${idx}`,
       productUid:      item.productUid,
       files: [{ type: 'default', url: item.fileUrl }],
       quantity:        item.quantity || 1,
     })),
-    shipmentMethodUid: 'standard',     // standard | express | economy
+    shipmentMethodUid: 'standard',
     shippingAddress: {
       firstName:    shippingAddress.firstName,
       lastName:     shippingAddress.lastName,
