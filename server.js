@@ -49,9 +49,14 @@ app.get('/api/catalogs', async (_req, res) => {
     const r = await fetch(GELATO_CATALOG_URL, {
       headers: { 'X-API-KEY': GELATO_API_KEY },
     });
-    const data = await r.json();
+    const text = await r.text();
+    console.log('Gelato /catalogs raw response:', r.status, text.slice(0, 500));
+    let data;
+    try { data = JSON.parse(text); } catch(e) { return res.status(500).json({ error: `Non-JSON from Gelato: ${text.slice(0,200)}` }); }
     if (!r.ok) return res.status(r.status).json({ error: JSON.stringify(data) });
-    res.json(data);
+    // Normalise: Gelato may return array or { catalogs: [] }
+    const catalogs = Array.isArray(data) ? data : (data.catalogs || data.data || []);
+    res.json(catalogs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
