@@ -481,20 +481,31 @@
   // ── Config ──────────────────────────────────────────────────────────────────
   // LOCAL DEV:  'http://localhost:3001'
   // PRODUCTION: replace with your Railway URL, e.g. 'https://gelato-store.up.railway.app'
-    const API_BASE = 'tshop-production.up.railway.app';
+  const API_BASE = 'https://YOUR_RAILWAY_URL_HERE';
 
   // ── Product catalogue ────────────────────────────────────────────────────────
   // productUid values come from your Gelato dashboard.
   // The ones below are real Gelato product UIDs for common items.
   const PRODUCTS = [
-    
+    {
+      id: 'poster-a3',
+      name: 'Art Poster — A3',
+      desc: 'Matte 170gsm paper, vibrant print. Perfect for framing.',
+      emoji: '🖼️',
+      variants: [
+        { label: 'A3 Portrait', productUid: 'poster_paper-matte-170gsm_size-a3_orientation-portrait', price: 12.00 },
+        { label: 'A2 Portrait', productUid: 'poster_paper-matte-170gsm_size-a2_orientation-portrait', price: 18.00 },
+      ],
+      // URL of the print file to send to Gelato (must be publicly accessible)
+      fileUrl: 'https://cdn-origin.gelato-api-dashboard.ie.live.gelato.tech/docs/sample-print-files/logo.png',
+    },
     {
       id: 'tshirt',
-      name: '1935 T-Shirt',
+      name: 'Classic T-Shirt',
       desc: 'Heavyweight cotton, double-stitched. Unisex crewneck.',
       emoji: '👕',
       variants: [
-        { label: 'White / S',  productUid: 'apparel_product_gca_t-shirt_gsc_crewneck_gcu_unisex_gqa_classic_gsi_s_gco_white_gpr_4-4',  price: 24.95 },
+        { label: 'White / S',  productUid: 'apparel_product_gca_t-shirt_gsc_crewneck_gcu_unisex_gqa_classic_gsi_s_gco_white_gpr_4-4',  price: 22.00 },
         { label: 'White / M',  productUid: 'apparel_product_gca_t-shirt_gsc_crewneck_gcu_unisex_gqa_classic_gsi_m_gco_white_gpr_4-4',  price: 22.00 },
         { label: 'White / L',  productUid: 'apparel_product_gca_t-shirt_gsc_crewneck_gcu_unisex_gqa_classic_gsi_l_gco_white_gpr_4-4',  price: 22.00 },
         { label: 'Black / M',  productUid: 'apparel_product_gca_t-shirt_gsc_crewneck_gcu_unisex_gqa_classic_gsi_m_gco_black_gpr_4-4',  price: 22.00 },
@@ -503,7 +514,7 @@
     },
     {
       id: 'mug',
-      name: 'laimbe tshirt',
+      name: 'Ceramic Mug',
       desc: '11oz ceramic, dishwasher safe. Full-wrap print.',
       emoji: '☕',
       variants: [
