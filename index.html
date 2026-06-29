@@ -483,85 +483,99 @@
   // PRODUCTION: replace with your Railway URL, e.g. 'https://gelato-store.up.railway.app'
   const API_BASE = 'https://tshop-production.up.railway.app'; // ← paste your Railway URL here
 
-  // ── Product catalogue ────────────────────────────────────────────────────────
-  // productUid values come from your Gelato dashboard.
-  // The ones below are real Gelato product UIDs for common items.
-  const PRODUCTS = [
-    {
-      id: 'poster-a3',
-      name: 'Art Poster — A3',
-      desc: 'Matte 170gsm paper, vibrant print. Perfect for framing.',
-      emoji: '🖼️',
-      variants: [
-        { label: 'A3 Portrait', productUid: 'poster_paper-matte-170gsm_size-a3_orientation-portrait', price: 12.00 },
-        { label: 'A2 Portrait', productUid: 'poster_paper-matte-170gsm_size-a2_orientation-portrait', price: 18.00 },
-      ],
-      // URL of the print file to send to Gelato (must be publicly accessible)
-      fileUrl: 'https://cdn-origin.gelato-api-dashboard.ie.live.gelato.tech/docs/sample-print-files/logo.png',
-    },
-    {
-      id: 'tshirt',
-      name: 'Classic T-Shirt',
-      desc: 'Heavyweight cotton, double-stitched. Unisex crewneck.',
-      emoji: '👕',
-      variants: [
-        { label: 'White / S',  productUid: 'apparel_product_gca_t-shirt_gsc_crewneck_gcu_unisex_gqa_classic_gsi_s_gco_white_gpr_4-4',  price: 22.00 },
-        { label: 'White / M',  productUid: 'apparel_product_gca_t-shirt_gsc_crewneck_gcu_unisex_gqa_classic_gsi_m_gco_white_gpr_4-4',  price: 22.00 },
-        { label: 'White / L',  productUid: 'apparel_product_gca_t-shirt_gsc_crewneck_gcu_unisex_gqa_classic_gsi_l_gco_white_gpr_4-4',  price: 22.00 },
-        { label: 'Black / M',  productUid: 'apparel_product_gca_t-shirt_gsc_crewneck_gcu_unisex_gqa_classic_gsi_m_gco_black_gpr_4-4',  price: 22.00 },
-      ],
-      fileUrl: 'https://cdn-origin.gelato-api-dashboard.ie.live.gelato.tech/docs/sample-print-files/logo.png',
-    },
-    {
-      id: 'mug',
-      name: 'Ceramic Mug',
-      desc: '11oz ceramic, dishwasher safe. Full-wrap print.',
-      emoji: '☕',
-      variants: [
-        { label: '11oz White', productUid: 'mug_product_gca_mug_gco_white_gsi_11oz', price: 14.00 },
-      ],
-      fileUrl: 'https://cdn-origin.gelato-api-dashboard.ie.live.gelato.tech/docs/sample-print-files/logo.png',
-    },
-    {
-      id: 'canvas',
-      name: 'Canvas Print',
-      desc: 'Gallery-wrapped canvas, 30×40cm. Ready to hang.',
-      emoji: '🎨',
-      variants: [
-        { label: '30×40cm', productUid: 'canvas_product_gca_canvas_gsi_30x40cm_gpr_4-0', price: 35.00 },
-        { label: '40×60cm', productUid: 'canvas_product_gca_canvas_gsi_40x60cm_gpr_4-0', price: 48.00 },
-      ],
-      fileUrl: 'https://cdn-origin.gelato-api-dashboard.ie.live.gelato.tech/docs/sample-print-files/logo.png',
-    },
-  ];
-
   // ── State ────────────────────────────────────────────────────────────────────
-  let cart = []; // [{ product, variant, qty }]
+  let PRODUCTS = []; // loaded dynamically from your Gelato store
+  let cart = [];     // [{ product, variant, qty }]
+
+  // ── Emoji map by product type ─────────────────────────────────────────────────
+  function productEmoji(title = '') {
+    const t = title.toLowerCase();
+    if (t.includes('shirt') || t.includes('tee') || t.includes('apparel')) return '👕';
+    if (t.includes('hoodie') || t.includes('sweatshirt'))                  return '🧥';
+    if (t.includes('mug') || t.includes('cup'))                            return '☕';
+    if (t.includes('poster') || t.includes('print'))                       return '🖼️';
+    if (t.includes('canvas'))                                               return '🎨';
+    if (t.includes('card'))                                                 return '🪪';
+    if (t.includes('bag') || t.includes('tote'))                           return '👜';
+    if (t.includes('phone') || t.includes('case'))                         return '📱';
+    if (t.includes('hat') || t.includes('cap'))                            return '🧢';
+    return '🛍️';
+  }
+
+  // ── Load products from your Gelato store ──────────────────────────────────────
+  async function loadProducts() {
+    const grid = document.getElementById('productGrid');
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted);font-size:0.9rem">Loading products…</div>`;
+    try {
+      const res = await fetch(`${API_BASE}/api/store/products`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+      if (!data.length) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)">No products found in your store.</div>`;
+        return;
+      }
+      // Map Gelato store products into our internal format
+      PRODUCTS = data.map(p => {
+        const variants = (p.variants || []).map(v => ({
+          label:      (v.title || v.variantTitle || Object.values(v.options || {}).join(' / ')),
+          productUid: v.productUid || v.externalId || '',
+          price:      parseFloat(v.price || p.price || 0),
+          fileUrl:    (v.imageSrc || p.previewUrl || ''),
+        }));
+        // Fallback if no variants
+        if (!variants.length) {
+          variants.push({
+            label:      p.title,
+            productUid: p.productUid || p.externalId || p.id,
+            price:      parseFloat(p.price || 0),
+            fileUrl:    p.previewUrl || '',
+          });
+        }
+        return {
+          id:       p.id || p.externalId,
+          name:     p.title,
+          desc:     p.description ? p.description.replace(/<[^>]+>/g, '').slice(0, 100) + '…' : '',
+          emoji:    productEmoji(p.title),
+          previewUrl: p.previewUrl || (p.variants && p.variants[0]?.imageSrc) || '',
+          variants,
+        };
+      });
+      renderProducts();
+    } catch (err) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#c0392b;font-size:0.9rem">Failed to load products: ${err.message}</div>`;
+    }
+  }
 
   // ── Render products ──────────────────────────────────────────────────────────
   function renderProducts() {
     const grid = document.getElementById('productGrid');
-    grid.innerHTML = PRODUCTS.map(p => `
-      <div class="product-card">
-        <div class="product-img">${p.emoji}</div>
-        <div class="product-body">
-          <div class="product-name">${p.name}</div>
-          <div class="product-desc">${p.desc}</div>
-          <select class="variant-select" id="variant-${p.id}">
-            ${p.variants.map((v,i) => `<option value="${i}">${v.label} — €${v.price.toFixed(2)}</option>`).join('')}
-          </select>
-          <div class="product-footer">
-            <span class="product-price">from €${Math.min(...p.variants.map(v=>v.price)).toFixed(2)}</span>
+    grid.innerHTML = PRODUCTS.map(p => {
+      const minPrice = Math.min(...p.variants.map(v => v.price));
+      const imgHtml = p.previewUrl
+        ? `<img src="${p.previewUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='${p.emoji}'">`
+        : p.emoji;
+      return `
+        <div class="product-card">
+          <div class="product-img">${imgHtml}</div>
+          <div class="product-body">
+            <div class="product-name">${p.name}</div>
+            <div class="product-desc">${p.desc}</div>
+            <select class="variant-select" id="variant-${p.id}">
+              ${p.variants.map((v,i) => `<option value="${i}">${v.label}${v.price ? ' — €' + v.price.toFixed(2) : ''}</option>`).join('')}
+            </select>
+            <div class="product-footer">
+              <span class="product-price">${minPrice ? 'from €' + minPrice.toFixed(2) : ''}</span>
+            </div>
+            <button class="add-btn" onclick="addToCart('${p.id}')">Add to Cart</button>
           </div>
-          <button class="add-btn" onclick="addToCart('${p.id}')">Add to Cart</button>
-        </div>
-      </div>
-    `).join('');
+        </div>`;
+    }).join('');
   }
 
   // ── Cart logic ───────────────────────────────────────────────────────────────
   function addToCart(productId) {
-    const product = PRODUCTS.find(p => p.id === productId);
+    const product = PRODUCTS.find(p => String(p.id) === String(productId));
+    if (!product) return;
     const variantIdx = parseInt(document.getElementById(`variant-${productId}`).value);
     const variant = product.variants[variantIdx];
     cart.push({ product, variant, qty: 1, id: Date.now() });
@@ -716,7 +730,7 @@
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────────
-  renderProducts();
+  loadProducts();
 </script>
 </body>
 </html>

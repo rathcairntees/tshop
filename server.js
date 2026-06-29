@@ -23,9 +23,11 @@ const PORT = process.env.PORT || 3001;
 const GELATO_API_KEY  = process.env.GELATO_API_KEY;
 const ALLOWED_ORIGIN  = process.env.ALLOWED_ORIGIN || '*';
 
-const GELATO_ORDER_URL   = 'https://order.gelatoapis.com/v4/orders';
-const GELATO_CATALOG_URL = 'https://product.gelatoapis.com/v3/catalogs';
-const GELATO_PRODUCT_URL = 'https://product.gelatoapis.com/v3/products';
+const GELATO_ORDER_URL    = 'https://order.gelatoapis.com/v4/orders';
+const GELATO_CATALOG_URL  = 'https://product.gelatoapis.com/v3/catalogs';
+const GELATO_PRODUCT_URL  = 'https://product.gelatoapis.com/v3/products';
+const GELATO_STORE_URL    = 'https://ecommerce.gelatoapis.com/v1/stores';
+const STORE_ID            = 'cbcd2e1b-fe6c-48c7-b6c7-ea6229e1ee3f';
 
 if (!GELATO_API_KEY) {
   console.error('❌  GELATO_API_KEY environment variable is not set.');
@@ -112,6 +114,29 @@ app.get('/api/products/:productUid', async (req, res) => {
     const data = await r.json();
     if (!r.ok) return res.status(r.status).json({ error: JSON.stringify(data) });
     res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Store: list your store's products ────────────────────────────────────────
+// GET /api/store/products
+app.get('/api/store/products', async (_req, res) => {
+  try {
+    const r = await fetch(`${GELATO_STORE_URL}/${STORE_ID}/products?limit=100`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': GELATO_API_KEY,
+      },
+    });
+    const text = await r.text();
+    console.log('Gelato store products raw:', r.status, text.slice(0, 300));
+    let data;
+    try { data = JSON.parse(text); } catch(e) { return res.status(500).json({ error: `Non-JSON from Gelato: ${text.slice(0,200)}` }); }
+    if (!r.ok) return res.status(r.status).json({ error: data.message || JSON.stringify(data) });
+    // Normalise response shape
+    const products = Array.isArray(data) ? data : (data.products || data.data || []);
+    res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
