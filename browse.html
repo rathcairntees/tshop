@@ -324,17 +324,34 @@
 
     try {
       const res = await fetch(`${apiBase}/api/catalogs`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || res.status);
+      const text = await res.text();
+      console.log('Catalogs raw response:', res.status, text);
+
+      let data;
+      try { data = JSON.parse(text); }
+      catch(e) { throw new Error(`Non-JSON response (${res.status}): ${text.slice(0, 300)}`); }
+
+      if (!res.ok) throw new Error(data.error || data.message || `Server returned ${res.status}`);
 
       const catalogs = Array.isArray(data) ? data : (data.catalogs || []);
+      if (!catalogs.length) {
+        grid.innerHTML = `<span style="color:#c0392b;font-size:0.85rem">No catalogs returned — check your Gelato API key in Railway variables.</span>`;
+        return;
+      }
       grid.innerHTML = catalogs.map(c => `
         <button class="catalog-chip" onclick="selectCatalog('${c.catalogUid}', this)">
           ${c.title || c.catalogUid}
         </button>
       `).join('');
     } catch (err) {
-      grid.innerHTML = `<span style="color:#c0392b;font-size:0.85rem">Error: ${err.message}</span>`;
+      console.error('loadCatalogs error:', err);
+      const isCors = err.message === 'Failed to fetch';
+      grid.innerHTML = isCors
+        ? `<div style="color:#c0392b;font-size:0.85rem;line-height:1.8">
+            <strong>CORS error</strong> — the server is blocking requests from this origin.<br>
+            Fix: Railway → Variables → set ALLOWED_ORIGIN to * → redeploy.
+           </div>`
+        : `<div style="color:#c0392b;font-size:0.85rem"><strong>Error:</strong> ${err.message}</div>`;
     }
   }
 
